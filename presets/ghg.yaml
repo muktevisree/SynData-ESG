@@ -1,0 +1,43 @@
+facility_id:
+  type: string
+  generator: uuid
+
+facility_name:
+  type: string
+  generator: faker.company
+
+country_code:
+  type: string
+  values: ["US", "IN", "CN", "BR", "DE"]
+
+latitude:
+  type: float
+  min: -90.0
+  max: 90.0
+
+longitude:
+  type: float
+  min: -180.0
+  max: 180.0
+
+reporting_period_start:
+  type: date
+  range: ["2018-01-01", "2022-12-31"]
+
+reporting_period_end:
+  type: date
+  range: ["2019-01-01", "2023-12-31"]
+
+scope_1_emissions_tonnes:
+  type: float
+  min: 1000
+  max: 1000000
+
+scope_2_emissions_tonnes:
+  type: float
+  min: 100
+  max: 500000
+
+total_emissions_tonnes:
+  type: float
+  calculated: scope_1_emissions_tonnes + scope_2_emissions_tonnes
