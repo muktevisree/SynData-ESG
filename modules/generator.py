@@ -43,21 +43,20 @@ def generate_value(field_spec):
         return None
 
 
+def generate_record(schema):
+    """Generate a single record (row) based on the schema."""
+    record = {}
+    for field, spec in schema.items():
+        if "calculated" in spec:
+            record[field] = 0  # placeholder, filled by business rules
+        else:
+            record[field] = generate_value(spec)
+    return record
+
+
 def generate_records(schema, num_records=100, seed=42):
-    """Generate synthetic records based on schema."""
+    """Generate multiple synthetic records based on schema."""
     random.seed(seed)
     faker.Faker.seed(seed)
 
-    records = []
-
-    for _ in range(num_records):
-        record = {}
-        for field, spec in schema.items():
-            if "calculated" in spec:
-                # Placeholder, will be filled by business rules
-                record[field] = 0
-            else:
-                record[field] = generate_value(spec)
-        records.append(record)
-
-    return records
+    return [generate_record(schema) for _ in range(num_records)]
