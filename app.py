@@ -1,103 +1,87 @@
-import sys
-import os
+# app.py
+
 import streamlit as st
-import pandas as pd
 import yaml
+import os
+import pandas as pd
 
-# ✅ Add path to modules folder
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "modules")))
+from modules.schema_parser import load_schema
+from modules.generator import generate_records
 
-# ✅ Import your existing generator
-from generator import generate_records
-from ghg_rules import apply_ghg_rules
+SCHEMAS_DIR = "schemas"
+OUTPUT_FILE = "synthetic_output.csv"
 
-# ------------------- CONFIGURATION ------------------- #
+st.set_page_config(
+    page_title="SynData-ESG Generator",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-SCHEMA_MAP = {
-    "GHG": "presets/ghg.yaml"
-}
+st.title("🧪 SynData-ESG: Synthetic Data Generator")
 
-st.set_page_config(page_title="SynData‑ESG Toolkit", layout="wide")
-st.title("SynData‑ESG Toolkit")
-st.caption("Synthetic ESG dataset generator aligned to OFP/OSDU schemas.")
+st.markdown("""
+Welcome to the **SynData-ESG Toolkit**. This app generates synthetic data aligned to ESG domains
+based on Open Footprint (OFP) and Open Subsurface Data Universe (OSDU) schemas.
 
-# ------------------- SELECT DOMAIN ------------------- #
+🔍 Choose a domain, load its schema, and generate up to **1000** synthetic records with accurate
+data types, ranges, and business rules.
 
-domain = st.selectbox("Select ESG Domain", list(SCHEMA_MAP.keys()))
-schema_path = SCHEMA_MAP[domain]
+📥 The generated data will be available for download as a CSV file.
 
-# ------------------- LOAD YAML SCHEMA ------------------- #
+---
 
-def load_schema(path):
-    with open(path, "r") as file:
-        return yaml.safe_load(file)
+### 🧾 Expected Headers (by ESG Domain)
 
-schema = load_schema(schema_path)
+**GHG (Greenhouse Gas Emissions)**:
+- `facility_id`, `facility_name`, `country_code`, `latitude`, `longitude`
+- `reporting_period_start`, `reporting_period_end`
+- `scope_1_emissions_tonnes`, `scope_2_emissions_tonnes`, `total_emissions_tonnes`
 
-# ------------------- SYNTHETIC DATA GENERATION ------------------- #
+*(CCS, UHS, etc. to be added in future releases)*
 
-st.subheader(f"🧪 Generate Synthetic {domain} Data")
+---
+""")
 
-row_count = st.slider("Number of synthetic rows to generate", 1, 500, 10)
+# Sidebar – schema and record selection
+st.sidebar.header("⚙️ Configuration")
 
-if st.button("🚀 Generate Synthetic Data"):
-    st.info("Generating synthetic data...")
+available_schemas = [f.replace(".yaml", "") for f in os.listdir(SCHEMAS_DIR) if f.endswith(".yaml")]
+selected_schema = st.sidebar.selectbox("Select ESG Domain", available_schemas)
 
-    # Use your existing generator
-    records = generate_records(schema, num_records=row_count)
+num_records = st.sidebar.slider("Number of records to generate", min_value=10, max_value=1000, step=10, value=100)
 
-    # Apply business logic / cleanup rules (optional)
-    cleaned_records = []
-    for rec in records:
-        try:
-            rec = apply_ghg_rules(rec)
-        except Exception:
-            pass  # skip if not applicable
-        cleaned_records.append(rec)
+generate_btn = st.sidebar.button("🚀 Generate Data")
 
-    df = pd.DataFrame(cleaned_records)
+# Load and display schema details
+schema_file = os.path.join(SCHEMAS_DIR, f"{selected_schema}.yaml")
+with open(schema_file, "r") as f:
+    schema_yaml = yaml.safe_load(f)
 
-    st.success(f"✅ Generated {len(df)} synthetic records!")
-    st.dataframe(df, use_container_width=True)
+schema = load_schema(schema_yaml)
 
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="📥 Download CSV",
-        data=csv,
-        file_name=f"synthetic_{domain.lower()}_data.csv",
-        mime="text/csv",
-    )
+st.subheader("📄 Schema Preview")
+st.json(schema_yaml, expanded=False)
 
-# ------------------- MANUAL ENTRY (OPTIONAL) ------------------- #
+# Generate Data
+if generate_btn:
+    st.success(f"Generating {num_records} synthetic records for '{selected_schema}'...")
+    data = generate_records(schema, num_records=num_records)
+    df = pd.DataFrame(data)
 
-st.subheader(f"📝 Manual Data Entry – {domain} Schema")
+    # Fill calculated fields (basic support for + operation)
+    for field, spec in schema_yaml.items():
+        if "calculated" in spec:
+            formula = spec["calculated"]
+            parts = formula.split("+")
+            if len(parts) == 2:
+                f1 = parts[0].strip()
+                f2 = parts[1].strip()
+                if f1 in df.columns and f2 in df.columns:
+                    df[field] = df[f1] + df[f2]
 
-def generate_blank_row(schema):
-    return {field: "" for field in schema.keys()}
+    # Show and allow download
+    st.subheader("📊 Generated Data Preview")
+    st.dataframe(df.head())
 
-if "rows" not in st.session_state:
-    st.session_state.rows = [generate_blank_row(schema)]
-
-col1, col2 = st.columns(2)
-if col1.button("➕ Add Row"):
-    st.session_state.rows.append(generate_blank_row(schema))
-if col2.button("🗑️ Clear All"):
-    st.session_state.rows.clear()
-
-manual_data = []
-for i, row in enumerate(st.session_state.rows):
-    with st.expander(f"Row {i+1}"):
-        input_row = {}
-        for field in schema.keys():
-            input_row[field] = st.text_input(f"{field}", value=row.get(field, ""), key=f"{field}_{i}")
-        manual_data.append(input_row)
-
-if manual_data:
-    df_manual = pd.DataFrame(manual_data)
-    csv_manual = df_manual.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="📥 Download Manual Entry as CSV",
-        data=csv_manual,
-        file_name=f"manual_{domain.lower()}_data.csv",
-        mime="text/csv",
-    )
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button("⬇️ Download CSV", csv, OUTPUT_FILE, "text/csv")
