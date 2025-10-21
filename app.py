@@ -1,36 +1,19 @@
+import sys
 import os
 import streamlit as st
 import pandas as pd
 import yaml
-import importlib.util
 
-# ------------------- DYNAMIC MODULE IMPORTS ------------------- #
+# 👇 Adjust sys.path for local modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules')))
 
-def import_validator(module_name, file_path, function_name):
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return getattr(module, function_name)
-
-MODULES_DIR = os.path.join(os.path.dirname(__file__), "modules")
-
-# Only load available validators (avoid UHS if not yet ready)
-validators = {}
-if os.path.exists(os.path.join(MODULES_DIR, "ghg_rules.py")):
-    validators["GHG"] = import_validator("ghg_rules", os.path.join(MODULES_DIR, "ghg_rules.py"), "validate_ghg_row")
-if os.path.exists(os.path.join(MODULES_DIR, "ccs_rules.py")):
-    validators["CCS"] = import_validator("ccs_rules", os.path.join(MODULES_DIR, "ccs_rules.py"), "validate_ccs_row")
-if os.path.exists(os.path.join(MODULES_DIR, "uhs_rules.py")):
-    validators["UHS"] = import_validator("uhs_rules", os.path.join(MODULES_DIR, "uhs_rules.py"), "validate_uhs_row")
+from ghg_rules import apply_ghg_rules
+from generator import generate_ghg_data
 
 # ------------------- CONFIGURATION ------------------- #
 
-DOMAIN_MAP = {
-    domain: {
-        "schema": f"presets/{domain.lower()}.yaml",
-        "validator": validators[domain]
-    }
-    for domain in validators
+SCHEMA_MAP = {
+    "GHG": "presets/ghg.yaml"
 }
 
 st.set_page_config(page_title="SynData-ESG Toolkit", layout="wide")
@@ -38,9 +21,8 @@ st.title("SynData-ESG Toolkit")
 
 # ------------------- DOMAIN SELECTION ------------------- #
 
-domain = st.selectbox("Select ESG Domain", list(DOMAIN_MAP.keys()))
-schema_path = DOMAIN_MAP[domain]["schema"]
-validator = DOMAIN_MAP[domain]["validator"]
+domain = st.selectbox("Select ESG Domain", list(SCHEMA_MAP.keys()))
+schema_path = SCHEMA_MAP[domain]
 
 # ------------------- SCHEMA LOADER ------------------- #
 
@@ -50,31 +32,41 @@ def load_schema(path):
 
 schema = load_schema(schema_path)
 
-# ------------------- FILE UPLOAD + VALIDATION ------------------- #
+# ------------------- SYNTHETIC GENERATOR ------------------- #
 
-st.subheader(f"📤 Upload CSV for {domain} Validation")
-uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+st.subheader(f"🧪 Generate Synthetic {domain} Data")
+row_count = st.slider("Number of synthetic rows", min_value=1, max_value=100, value=10)
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    errors = []
-    for idx, row in df.iterrows():
-        row_errors = validator(row)
-        if row_errors:
-            errors.append({"Row": idx + 2, "Errors": "; ".join(row_errors)})
+if st.button("🚀 Generate Synthetic Data"):
+    synthetic_data = generate_ghg_data(schema, row_count)
+    
+    # Apply optional rules/cleanup
+    cleaned_data = []
+    for record in synthetic_data:
+        try:
+            record = apply_ghg_rules(record)
+        except Exception as e:
+            st.warning(f"⚠️ Issue in record: {e}")
+        cleaned_data.append(record)
+    
+    df = pd.DataFrame(cleaned_data)
+    st.success(f"✅ Generated {len(df)} synthetic records!")
+    st.dataframe(df)
 
-    if errors:
-        st.error("❌ Validation Errors Found")
-        st.dataframe(pd.DataFrame(errors))
-    else:
-        st.success("✅ No Validation Errors! 🎉")
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download CSV",
+        data=csv,
+        file_name=f"synthetic_{domain.lower()}_data.csv",
+        mime='text/csv'
+    )
 
 # ------------------- MANUAL DATA ENTRY ------------------- #
 
 st.subheader(f"📝 Manual Data Entry – {domain} Schema")
 
 def generate_blank_row(schema):
-    return {field['name']: '' for field in schema['fields']}
+    return {field_name: '' for field_name in schema.keys()}
 
 if "rows" not in st.session_state:
     st.session_state.rows = [generate_blank_row(schema)]
@@ -90,22 +82,13 @@ data = []
 for i, row in enumerate(st.session_state.rows):
     with st.expander(f"Row {i+1}", expanded=False):
         input_row = {}
-        for field in schema['fields']:
-            fname = field['name']
-            ftype = field.get('type', 'string')
-            default_val = row.get(fname, '')
-            if ftype in ['number', 'float', 'integer']:
-                input_row[fname] = st.number_input(
-                    label=f"{fname}", 
-                    value=float(default_val) if default_val else 0.0, 
-                    key=f"{fname}_{i}"
-                )
-            else:
-                input_row[fname] = st.text_input(
-                    label=f"{fname}", 
-                    value=str(default_val), 
-                    key=f"{fname}_{i}"
-                )
+        for field_name in schema.keys():
+            default_val = row.get(field_name, '')
+            input_row[field_name] = st.text_input(
+                label=f"{field_name}",
+                value=str(default_val),
+                key=f"{field_name}_{i}"
+            )
         data.append(input_row)
 
 # ------------------- CSV DOWNLOAD ------------------- #
@@ -114,8 +97,8 @@ if data:
     df_out = pd.DataFrame(data)
     csv = df_out.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="📥 Download Synthetic CSV",
+        label="📥 Download Manual Entry as CSV",
         data=csv,
-        file_name=f"synthetic_{domain.lower()}_data.csv",
+        file_name=f"manual_{domain.lower()}_data.csv",
         mime='text/csv'
     )
