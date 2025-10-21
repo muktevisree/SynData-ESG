@@ -6,9 +6,11 @@ country_code:
 
 capture_source_type:
   type: string
+  choices: ["Power Plant", "Refinery", "Cement", "Steel"]
 
 storage_type:
   type: string
+  choices: ["Saline Aquifer", "Depleted Reservoir", "EOR Site"]
 
 co2_captured_tonnes:
   type: float
@@ -18,7 +20,7 @@ co2_captured_tonnes:
 co2_stored_tonnes:
   type: float
   min: 8000
-  max: 450000
+  max: 480000
 
 total_cost_million_usd:
   calculated: co2_captured_tonnes + co2_stored_tonnes
