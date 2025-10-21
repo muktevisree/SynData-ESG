@@ -1,33 +1,36 @@
-import sys
 import os
-
-# 👇 Add this to include the modules folder
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules')))
-
 import streamlit as st
 import pandas as pd
 import yaml
+import importlib.util
 
-# ✅ Change import paths to direct filenames (no modules.)
-from ghg_rules import validate_ghg_row
-from ccs_rules import validate_ccs_row
-# from uhs_rules import validate_uhs_row  # (add later when UHS is ready)
+# ------------------- DYNAMIC MODULE IMPORTS ------------------- #
+
+def import_validator(module_name, file_path, function_name):
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, function_name)
+
+MODULES_DIR = os.path.join(os.path.dirname(__file__), "modules")
+
+# Only load available validators (avoid UHS if not yet ready)
+validators = {}
+if os.path.exists(os.path.join(MODULES_DIR, "ghg_rules.py")):
+    validators["GHG"] = import_validator("ghg_rules", os.path.join(MODULES_DIR, "ghg_rules.py"), "validate_ghg_row")
+if os.path.exists(os.path.join(MODULES_DIR, "ccs_rules.py")):
+    validators["CCS"] = import_validator("ccs_rules", os.path.join(MODULES_DIR, "ccs_rules.py"), "validate_ccs_row")
+if os.path.exists(os.path.join(MODULES_DIR, "uhs_rules.py")):
+    validators["UHS"] = import_validator("uhs_rules", os.path.join(MODULES_DIR, "uhs_rules.py"), "validate_uhs_row")
 
 # ------------------- CONFIGURATION ------------------- #
 
 DOMAIN_MAP = {
-    "GHG": {
-        "schema": "presets/ghg.yaml",
-        "validator": validate_ghg_row
-    },
-    "CCS": {
-        "schema": "presets/ccs.yaml",
-        "validator": validate_ccs_row
-    },
-    "UHS": {
-        "schema": "presets/uhs.yaml",
-        "validator": validate_uhs_row
+    domain: {
+        "schema": f"presets/{domain.lower()}.yaml",
+        "validator": validators[domain]
     }
+    for domain in validators
 }
 
 st.set_page_config(page_title="SynData-ESG Toolkit", layout="wide")
