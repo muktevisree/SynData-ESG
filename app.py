@@ -4,13 +4,13 @@ import streamlit as st
 import yaml
 import os
 import pandas as pd
+from datetime import datetime
 
 from modules.schema_parser import load_schema
 from modules.generator import generate_records
 
 # ✅ Updated to match renamed folder
 SCHEMAS_DIR = "schema"
-OUTPUT_FILE = "synthetic_output.csv"
 
 st.set_page_config(
     page_title="SynData-ESG Generator",
@@ -63,7 +63,7 @@ schema_file = os.path.join(SCHEMAS_DIR, f"{selected_schema}.yaml")
 with open(schema_file, "r") as f:
     schema_yaml = yaml.safe_load(f)
 
-# ✅ FIX: Pass schema_file (path), not schema_yaml (dict)
+# ✅ FIX: Load schema using path
 schema = load_schema(schema_file)
 
 st.subheader("📄 Schema Preview")
@@ -90,5 +90,9 @@ if generate_btn:
     st.subheader("📊 Generated Data Preview")
     st.dataframe(df.head())
 
+    # ⏱️ Timestamped filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    output_filename = f"synthetic_data_{selected_schema}_{timestamp}.csv"
+
     csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("⬇️ Download CSV", csv, OUTPUT_FILE, "text/csv")
+    st.download_button("⬇️ Download CSV", csv, output_filename, "text/csv")
