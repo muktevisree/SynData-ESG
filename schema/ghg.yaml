@@ -8,35 +8,45 @@ facility_name:
 
 country_code:
   type: string
-  values: ["US", "IN", "CN", "BR", "DE"]
+  values:
+    - US
+    - CA
+    - GB
+    - IN
+    - AU
+    - NO
+    - DE
+    - CN
+    - BR
+    - ZA
 
 latitude:
   type: float
-  min: -90.0
-  max: 90.0
+  min: -90
+  max: 90
 
 longitude:
   type: float
-  min: -180.0
-  max: 180.0
+  min: -180
+  max: 180
 
 reporting_period_start:
   type: date
-  range: ["2018-01-01", "2022-12-31"]
+  range: ["2022-01-01", "2022-12-31"]
 
 reporting_period_end:
   type: date
-  range: ["2019-01-01", "2023-12-31"]
+  range: ["2023-01-01", "2023-12-31"]
 
 scope_1_emissions_tonnes:
   type: float
-  min: 1000
-  max: 1000000
+  min: 10000
+  max: 500000
 
 scope_2_emissions_tonnes:
   type: float
-  min: 100
-  max: 500000
+  min: 5000
+  max: 250000
 
 total_emissions_tonnes:
   type: float
