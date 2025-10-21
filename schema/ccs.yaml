@@ -1,30 +1,52 @@
 facility_id:
   type: string
-  pattern: "FAC-###"
+  generator: uuid
 
 country_code:
-  type: categorical
-  enum: [US, CA, IN, AU, DE]
+  type: string
+  values:
+    - US
+    - CA
+    - GB
+    - IN
+    - AU
+    - NO
+    - DE
+    - CN
+    - BR
+    - ZA
 
 capture_source_type:
-  type: categorical
-  enum: [power plant, industrial, biogenic]
+  type: string
+  values:
+    - power generation
+    - cement production
+    - hydrogen production
+    - steel manufacturing
+    - chemical processing
+    - natural gas processing
+    - bioenergy
+    - direct air capture
 
 storage_type:
-  type: categorical
-  enum: [saline aquifer, depleted field, EOR site]
+  type: string
+  values:
+    - saline aquifer
+    - depleted oil and gas field
+    - basalt formation
+    - unmineable coal seam
+    - offshore reservoir
 
 co2_captured_tonnes:
   type: float
-  min: 10000
-  max: 1000000
+  min: 50000
+  max: 500000
 
 co2_stored_tonnes:
   type: float
-  min: 5000
-  max: 1000000
+  min: 10000
+  max: 450000
 
 total_cost_million_usd:
   type: float
-  min: 1
-  max: 1000
+  calculated: co2_captured_tonnes + co2_stored_tonnes
