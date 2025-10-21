@@ -4,11 +4,12 @@ import streamlit as st
 import pandas as pd
 import yaml
 
-# 👇 Adjust sys.path for local modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules')))
+# ✅ Add path to modules folder
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "modules")))
 
+# ✅ Import your existing generator
+from generator import generate_records
 from ghg_rules import apply_ghg_rules
-from generator import generate_ghg_data
 
 # ------------------- CONFIGURATION ------------------- #
 
@@ -16,89 +17,87 @@ SCHEMA_MAP = {
     "GHG": "presets/ghg.yaml"
 }
 
-st.set_page_config(page_title="SynData-ESG Toolkit", layout="wide")
-st.title("SynData-ESG Toolkit")
+st.set_page_config(page_title="SynData‑ESG Toolkit", layout="wide")
+st.title("SynData‑ESG Toolkit")
+st.caption("Synthetic ESG dataset generator aligned to OFP/OSDU schemas.")
 
-# ------------------- DOMAIN SELECTION ------------------- #
+# ------------------- SELECT DOMAIN ------------------- #
 
 domain = st.selectbox("Select ESG Domain", list(SCHEMA_MAP.keys()))
 schema_path = SCHEMA_MAP[domain]
 
-# ------------------- SCHEMA LOADER ------------------- #
+# ------------------- LOAD YAML SCHEMA ------------------- #
 
 def load_schema(path):
-    with open(path, 'r') as file:
+    with open(path, "r") as file:
         return yaml.safe_load(file)
 
 schema = load_schema(schema_path)
 
-# ------------------- SYNTHETIC GENERATOR ------------------- #
+# ------------------- SYNTHETIC DATA GENERATION ------------------- #
 
 st.subheader(f"🧪 Generate Synthetic {domain} Data")
-row_count = st.slider("Number of synthetic rows", min_value=1, max_value=100, value=10)
+
+row_count = st.slider("Number of synthetic rows to generate", 1, 500, 10)
 
 if st.button("🚀 Generate Synthetic Data"):
-    synthetic_data = generate_ghg_data(schema, row_count)
-    
-    # Apply optional rules/cleanup
-    cleaned_data = []
-    for record in synthetic_data:
-        try:
-            record = apply_ghg_rules(record)
-        except Exception as e:
-            st.warning(f"⚠️ Issue in record: {e}")
-        cleaned_data.append(record)
-    
-    df = pd.DataFrame(cleaned_data)
-    st.success(f"✅ Generated {len(df)} synthetic records!")
-    st.dataframe(df)
+    st.info("Generating synthetic data...")
 
-    csv = df.to_csv(index=False).encode('utf-8')
+    # Use your existing generator
+    records = generate_records(schema, num_records=row_count)
+
+    # Apply business logic / cleanup rules (optional)
+    cleaned_records = []
+    for rec in records:
+        try:
+            rec = apply_ghg_rules(rec)
+        except Exception:
+            pass  # skip if not applicable
+        cleaned_records.append(rec)
+
+    df = pd.DataFrame(cleaned_records)
+
+    st.success(f"✅ Generated {len(df)} synthetic records!")
+    st.dataframe(df, use_container_width=True)
+
+    csv = df.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="📥 Download CSV",
         data=csv,
         file_name=f"synthetic_{domain.lower()}_data.csv",
-        mime='text/csv'
+        mime="text/csv",
     )
 
-# ------------------- MANUAL DATA ENTRY ------------------- #
+# ------------------- MANUAL ENTRY (OPTIONAL) ------------------- #
 
 st.subheader(f"📝 Manual Data Entry – {domain} Schema")
 
 def generate_blank_row(schema):
-    return {field_name: '' for field_name in schema.keys()}
+    return {field: "" for field in schema.keys()}
 
 if "rows" not in st.session_state:
     st.session_state.rows = [generate_blank_row(schema)]
 
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns(2)
 if col1.button("➕ Add Row"):
     st.session_state.rows.append(generate_blank_row(schema))
 if col2.button("🗑️ Clear All"):
     st.session_state.rows.clear()
 
-# Input form
-data = []
+manual_data = []
 for i, row in enumerate(st.session_state.rows):
-    with st.expander(f"Row {i+1}", expanded=False):
+    with st.expander(f"Row {i+1}"):
         input_row = {}
-        for field_name in schema.keys():
-            default_val = row.get(field_name, '')
-            input_row[field_name] = st.text_input(
-                label=f"{field_name}",
-                value=str(default_val),
-                key=f"{field_name}_{i}"
-            )
-        data.append(input_row)
+        for field in schema.keys():
+            input_row[field] = st.text_input(f"{field}", value=row.get(field, ""), key=f"{field}_{i}")
+        manual_data.append(input_row)
 
-# ------------------- CSV DOWNLOAD ------------------- #
-
-if data:
-    df_out = pd.DataFrame(data)
-    csv = df_out.to_csv(index=False).encode('utf-8')
+if manual_data:
+    df_manual = pd.DataFrame(manual_data)
+    csv_manual = df_manual.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="📥 Download Manual Entry as CSV",
-        data=csv,
+        data=csv_manual,
         file_name=f"manual_{domain.lower()}_data.csv",
-        mime='text/csv'
+        mime="text/csv",
     )
