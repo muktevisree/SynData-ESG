@@ -1,17 +1,17 @@
 import sys
 import os
 
-# Enable imports from parent directory (e.g., /modules)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# 👇 Add this to include the modules folder
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules')))
 
 import streamlit as st
 import pandas as pd
 import yaml
 
-# Import custom validator functions
-from modules.ghg_rules import validate_ghg_row
-from modules.ccs_rules import validate_ccs_row
-from modules.uhs_rules import validate_uhs_row
+# ✅ Change import paths to direct filenames (no modules.)
+from ghg_rules import validate_ghg_row
+from ccs_rules import validate_ccs_row
+# from uhs_rules import validate_uhs_row  # (add later when UHS is ready)
 
 # ------------------- CONFIGURATION ------------------- #
 
