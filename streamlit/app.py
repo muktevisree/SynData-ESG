@@ -1,12 +1,21 @@
+import sys
+import os
+
+# Make sure custom modules can be imported
+sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.join(os.path.dirname(__file__), 'modules'))
+
 import streamlit as st
 import pandas as pd
 import yaml
-import os
-from modules.ghg_rules import validate_ghg_row
-from modules.ccs_rules import validate_ccs_row
-from modules.uhs_rules import validate_uhs_row
 
-# Map domain to schema and rule function
+# Import validators
+from ghg_rules import validate_ghg_row
+from ccs_rules import validate_ccs_row
+from uhs_rules import validate_uhs_row
+
+# ------------------- CONFIG ------------------- #
+
 DOMAIN_MAP = {
     "GHG": {
         "schema": "presets/ghg.yaml",
@@ -25,23 +34,21 @@ DOMAIN_MAP = {
 st.set_page_config(page_title="SynData-ESG Toolkit", layout="wide")
 st.title("SynData-ESG Toolkit")
 
-# Select ESG domain
-domain = st.selectbox("Select ESG Domain", list(DOMAIN_MAP.keys()))
+# ------------------- SELECT DOMAIN ------------------- #
 
-# Load schema and validator
+domain = st.selectbox("Select ESG Domain", list(DOMAIN_MAP.keys()))
 schema_path = DOMAIN_MAP[domain]["schema"]
 validator = DOMAIN_MAP[domain]["validator"]
 
-# Load schema
+# ------------------- LOAD SCHEMA ------------------- #
+
 def load_schema(path):
     with open(path, 'r') as file:
         return yaml.safe_load(file)
 
-# Generate blank row based on schema
-def generate_blank_row(schema):
-    return {field['name']: '' for field in schema['fields']}
-
 schema = load_schema(schema_path)
+
+# ------------------- FILE UPLOAD VALIDATION ------------------- #
 
 st.subheader(f"Upload CSV for {domain} Validation")
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
@@ -60,11 +67,17 @@ if uploaded_file:
     else:
         st.success("No Validation Errors! 🎉")
 
+# ------------------- MANUAL ENTRY ------------------- #
+
 st.subheader(f"Manual Data Entry – {domain} Schema")
+
+def generate_blank_row(schema):
+    return {field['name']: '' for field in schema['fields']}
+
 if "rows" not in st.session_state:
     st.session_state.rows = [generate_blank_row(schema)]
 
-# Add/Remove rows buttons
+# Add/Remove buttons
 col1, col2 = st.columns([1, 1])
 if col1.button("➕ Add Row"):
     st.session_state.rows.append(generate_blank_row(schema))
@@ -86,7 +99,8 @@ for i, row in enumerate(st.session_state.rows):
                 input_row[fname] = st.text_input(f"{fname}", value=str(default_val), key=f"{fname}_{i}")
         data.append(input_row)
 
-# Download button
+# ------------------- DOWNLOAD ------------------- #
+
 if data:
     df_out = pd.DataFrame(data)
     csv = df_out.to_csv(index=False).encode('utf-8')
@@ -94,4 +108,5 @@ if data:
         label="📥 Download CSV",
         data=csv,
         file_name=f"synthetic_{domain.lower()}_data.csv",
-        mime='text/csv')
+        mime='text/csv'
+    )
