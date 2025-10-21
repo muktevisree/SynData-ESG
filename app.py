@@ -8,7 +8,8 @@ import pandas as pd
 from modules.schema_parser import load_schema
 from modules.generator import generate_records
 
-SCHEMAS_DIR = "schemas"
+# ✅ Updated to match your renamed folder
+SCHEMAS_DIR = "schema"
 OUTPUT_FILE = "synthetic_output.csv"
 
 st.set_page_config(
@@ -37,7 +38,11 @@ data types, ranges, and business rules.
 - `reporting_period_start`, `reporting_period_end`
 - `scope_1_emissions_tonnes`, `scope_2_emissions_tonnes`, `total_emissions_tonnes`
 
-*(CCS, UHS, etc. to be added in future releases)*
+**CCS (Carbon Capture and Storage)**:
+- `facility_id`, `country_code`, `capture_source_type`, `storage_type`
+- `co2_captured_tonnes`, `co2_stored_tonnes`, `total_cost_million_usd`
+
+*(UHS and other ESG domains coming soon!)*
 
 ---
 """)
@@ -45,6 +50,7 @@ data types, ranges, and business rules.
 # Sidebar – schema and record selection
 st.sidebar.header("⚙️ Configuration")
 
+# ✅ Dynamically list schemas from 'schema' folder
 available_schemas = [f.replace(".yaml", "") for f in os.listdir(SCHEMAS_DIR) if f.endswith(".yaml")]
 selected_schema = st.sidebar.selectbox("Select ESG Domain", available_schemas)
 
@@ -68,7 +74,7 @@ if generate_btn:
     data = generate_records(schema, num_records=num_records)
     df = pd.DataFrame(data)
 
-    # Fill calculated fields (basic support for + operation)
+    # 🧮 Calculated fields support (e.g., total = field1 + field2)
     for field, spec in schema_yaml.items():
         if "calculated" in spec:
             formula = spec["calculated"]
@@ -79,7 +85,7 @@ if generate_btn:
                 if f1 in df.columns and f2 in df.columns:
                     df[field] = df[f1] + df[f2]
 
-    # Show and allow download
+    # Display and export
     st.subheader("📊 Generated Data Preview")
     st.dataframe(df.head())
 
