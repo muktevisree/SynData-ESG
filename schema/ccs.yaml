@@ -1,26 +1,30 @@
 facility_id:
   type: string
+  pattern: "FAC-###"
 
 country_code:
-  type: string
+  type: categorical
+  enum: [US, CA, IN, AU, DE]
 
 capture_source_type:
-  type: string
-  choices: ["Power Plant", "Refinery", "Cement", "Steel"]
+  type: categorical
+  enum: [power plant, industrial, biogenic]
 
 storage_type:
-  type: string
-  choices: ["Saline Aquifer", "Depleted Reservoir", "EOR Site"]
+  type: categorical
+  enum: [saline aquifer, depleted field, EOR site]
 
 co2_captured_tonnes:
   type: float
   min: 10000
-  max: 500000
+  max: 1000000
 
 co2_stored_tonnes:
   type: float
-  min: 8000
-  max: 480000
+  min: 5000
+  max: 1000000
 
 total_cost_million_usd:
-  calculated: co2_captured_tonnes + co2_stored_tonnes
+  type: float
+  min: 1
+  max: 1000
