@@ -71,20 +71,20 @@ st.json(schema_yaml, expanded=False)
 
 # Generate Data
 if generate_btn:
-    st.success(f"Generating {num_records} synthetic records for '{selected_schema}'...")
-    data = generate_records(schema, num_records=num_records)
-    df = pd.DataFrame(data)
+    with st.spinner(f"⏳ Generating {num_records} synthetic records for '{selected_schema}'..."):
+        data = generate_records(schema, num_records=num_records)
+        df = pd.DataFrame(data)
 
-    # 🧮 Calculated fields support (e.g., total = field1 + field2)
-    for field, spec in schema_yaml.items():
-        if "calculated" in spec:
-            formula = spec["calculated"]
-            parts = formula.split("+")
-            if len(parts) == 2:
-                f1 = parts[0].strip()
-                f2 = parts[1].strip()
-                if f1 in df.columns and f2 in df.columns:
-                    df[field] = df[f1] + df[f2]
+        # 🧮 Calculated fields support (e.g., total = field1 + field2)
+        for field, spec in schema_yaml.items():
+            if "calculated" in spec:
+                formula = spec["calculated"]
+                parts = formula.split("+")
+                if len(parts) == 2:
+                    f1 = parts[0].strip()
+                    f2 = parts[1].strip()
+                    if f1 in df.columns and f2 in df.columns:
+                        df[field] = df[f1] + df[f2]
 
     # Display and export
     st.subheader("📊 Generated Data Preview")
