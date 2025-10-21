@@ -8,7 +8,7 @@ import pandas as pd
 from modules.schema_parser import load_schema
 from modules.generator import generate_records
 
-# ✅ Updated to match your renamed folder
+# ✅ Updated to match renamed folder
 SCHEMAS_DIR = "schema"
 OUTPUT_FILE = "synthetic_output.csv"
 
@@ -63,7 +63,8 @@ schema_file = os.path.join(SCHEMAS_DIR, f"{selected_schema}.yaml")
 with open(schema_file, "r") as f:
     schema_yaml = yaml.safe_load(f)
 
-schema = load_schema(schema_yaml)
+# ✅ FIX: Pass schema_file (path), not schema_yaml (dict)
+schema = load_schema(schema_file)
 
 st.subheader("📄 Schema Preview")
 st.json(schema_yaml, expanded=False)
