@@ -1,0 +1,59 @@
+# presets/ccs.yaml
+
+fields:
+  - name: facility_id
+    type: string
+    generator: uuid
+
+  - name: country_code
+    type: string
+    values: ["US", "IN", "DE", "CN", "BR"]
+
+  - name: capture_source_type
+    type: string
+    values: ["Power Plant", "Cement Plant", "Steel Mill", "Refinery"]
+
+  - name: co2_captured_tonnes
+    type: float
+    min: 1000
+    max: 100000
+
+  - name: co2_compressed_tonnes
+    type: float
+    min: 900
+    max: 95000
+
+  - name: co2_transported_tonnes
+    type: float
+    min: 900
+    max: 95000
+
+  - name: pipeline_length_km
+    type: float
+    min: 10
+    max: 500
+
+  - name: reservoir_type
+    type: string
+    values: ["Saline Aquifer", "Depleted Oil Reservoir", "Gas Field"]
+
+  - name: injection_start_date
+    type: date
+    range: ["2015-01-01", "2022-01-01"]
+
+  - name: injection_end_date
+    type: date
+    range: ["2022-02-01", "2025-01-01"]
+
+  - name: co2_injected_tonnes
+    type: float
+    min: 800
+    max: 90000
+
+  - name: monitoring_method
+    type: string
+    values: ["Seismic", "Satellite", "In-situ Sensors", "Aerial Drones"]
+
+  - name: storage_location
+    type: string
+    generator: faker.company
