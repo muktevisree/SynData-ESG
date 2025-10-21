@@ -9,6 +9,9 @@ fake = faker.Faker()
 
 def generate_value(field_spec):
     """Generate a value based on the schema specification."""
+    if not isinstance(field_spec, dict):
+        raise TypeError(f"Expected dict for field spec but got {type(field_spec)}: {field_spec}")
+
     ftype = field_spec.get("type")
 
     if ftype == "string":
@@ -23,7 +26,7 @@ def generate_value(field_spec):
             return fake.word()
 
     elif ftype == "float":
-        return round(random.uniform(field_spec.get("min", 0), field_spec.get("max", 1)), 2)
+        return round(random.uniform(field_spec.get("min", 0.0), field_spec.get("max", 100.0)), 2)
 
     elif ftype == "int":
         return random.randint(field_spec.get("min", 0), field_spec.get("max", 100))
@@ -40,17 +43,20 @@ def generate_value(field_spec):
         return random.choice([True, False])
 
     else:
-        return None
+        raise ValueError(f"Unsupported or missing type in field_spec: {field_spec}")
 
 
 def generate_record(schema):
     """Generate a single record (row) based on the schema."""
     record = {}
     for field, spec in schema.items():
-        if "calculated" in spec:
-            record[field] = 0  # placeholder, filled by business rules
-        else:
-            record[field] = generate_value(spec)
+        try:
+            if isinstance(spec, dict) and "calculated" in spec:
+                record[field] = 0  # Placeholder, to be computed later
+            else:
+                record[field] = generate_value(spec)
+        except Exception as e:
+            raise ValueError(f"Error generating field '{field}': {e}")
     return record
 
 
