@@ -4,12 +4,12 @@ import streamlit as st
 import yaml
 import os
 import pandas as pd
+import time
 from datetime import datetime
-
 from modules.schema_parser import load_schema
-from modules.generator import generate_records
+from modules.generator import generate_record  # importing single record function
 
-# ✅ Updated to match renamed folder
+# ✅ Folder where schema YAMLs are stored
 SCHEMAS_DIR = "schema"
 
 st.set_page_config(
@@ -21,11 +21,10 @@ st.set_page_config(
 st.title("🧪 SynData-ESG: Synthetic Data Generator")
 
 st.markdown("""
-Welcome to the **SynData-ESG Toolkit**. This app generates synthetic data aligned to ESG domains
-based on Open Footprint (OFP) and Open Subsurface Data Universe (OSDU) schemas.
+Welcome to the **SynData-ESG Toolkit**.  
+This app generates synthetic ESG datasets aligned with Open Footprint (OFP) and Open Subsurface Data Universe (OSDU) standards.
 
-🔍 Choose a domain, load its schema, and generate up to **1000** synthetic records with accurate
-data types, ranges, and business rules.
+🔍 **Select a domain**, load its schema, and generate up to **1000 synthetic records** with accurate data types, ranges, and business rules.
 
 📥 The generated data will be available for download as a CSV file.
 
@@ -47,35 +46,40 @@ data types, ranges, and business rules.
 ---
 """)
 
-# Sidebar – schema and record selection
+# ⚙️ Sidebar Configuration
 st.sidebar.header("⚙️ Configuration")
 
-# ✅ Dynamically list schemas from 'schema' folder
-available_schemas = [f.replace(".yaml", "") for f in os.listdir(SCHEMAS_DIR) if f.endswith(".yaml")]
+available_schemas = [
+    f.replace(".yaml", "") for f in os.listdir(SCHEMAS_DIR) if f.endswith(".yaml")
+]
 selected_schema = st.sidebar.selectbox("Select ESG Domain", available_schemas)
 
-num_records = st.sidebar.slider("Number of records to generate", min_value=10, max_value=1000, step=10, value=100)
+num_records = st.sidebar.slider(
+    "Number of records to generate", min_value=10, max_value=1000, step=10, value=100
+)
 
 generate_btn = st.sidebar.button("🚀 Generate Data")
 
-# Load and display schema details
+# 📂 Load Schema File
 schema_file = os.path.join(SCHEMAS_DIR, f"{selected_schema}.yaml")
 with open(schema_file, "r") as f:
     schema_yaml = yaml.safe_load(f)
 
-# ✅ FIX: Load schema using path
 schema = load_schema(schema_file)
 
 st.subheader("📄 Schema Preview")
 st.json(schema_yaml, expanded=False)
 
-# Generate Data
+# 🚀 Generate Synthetic Data
 if generate_btn:
-    with st.spinner(f"⏳ Generating {num_records} synthetic records for '{selected_schema}'..."):
-        data = generate_records(schema, num_records=num_records)
-        df = pd.DataFrame(data)
+    st.info(f"🔄 Generating {num_records} synthetic records for '{selected_schema}'...")
 
-        # 🧮 Calculated fields support (e.g., total = field1 + field2)
+    progress_bar = st.progress(0, text="Starting generation...")
+
+    records = []
+    for i in range(num_records):
+        record = generate_record(schema)
+        # 🧮 Handle calculated fields
         for field, spec in schema_yaml.items():
             if "calculated" in spec:
                 formula = spec["calculated"]
@@ -83,16 +87,33 @@ if generate_btn:
                 if len(parts) == 2:
                     f1 = parts[0].strip()
                     f2 = parts[1].strip()
-                    if f1 in df.columns and f2 in df.columns:
-                        df[field] = df[f1] + df[f2]
+                    if f1 in record and f2 in record:
+                        record[field] = record[f1] + record[f2]
+        records.append(record)
+        progress_bar.progress((i + 1) / num_records, text=f"Generating... {i+1}/{num_records}")
+        time.sleep(0.001)  # ⚙️ Control pace for UI fluidity
 
-    # Display and export
+    progress_bar.empty()
+
+    df = pd.DataFrame(records)
+
     st.subheader("📊 Generated Data Preview")
     st.dataframe(df.head())
 
-    # ⏱️ Timestamped filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     output_filename = f"synthetic_data_{selected_schema}_{timestamp}.csv"
 
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button("⬇️ Download CSV", csv, output_filename, "text/csv")
+
+    st.success(f"✅ File **{output_filename}** is ready for download!")
+
+    # 🔔 JS-based browser notification sound
+    st.markdown("""
+    <script>
+        var audio = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
+        audio.play();
+    </script>
+    """, unsafe_allow_html=True)
+
+    st.info(f"📦 Generated {len(df)} records for **{selected_schema.upper()}** schema.")
